@@ -12,7 +12,7 @@ This project implements:
 
 ## Project Status
 
-🚧 Under Development - Phase 1: Foundation Setup
+🚧 Under Development - Phase 2: Database Layer Complete ✅
 
 ## Technology Stack
 
@@ -75,17 +75,49 @@ src/e1_certification/
 
 ## Development
 
-Run tests:
+## Development
+
+### Quick Commands
+
+We use a Makefile for common tasks:
 
 ```bash
-pytest
+make help         # Show all available commands
+make setup        # Initial project setup
+make test         # Run all tests
+make dev          # Run quick checks (lint + unit tests)
 ```
 
-Check code quality:
+### Testing
 
 ```bash
-ruff check .
-ruff format .
+make test              # Run all tests
+make test-unit         # Run unit tests only (fast)
+make test-integration  # Run integration tests only
+make test-coverage     # Generate coverage report
+```
+
+### Code Quality
+
+```bash
+make lint    # Check code style
+make format  # Format code
+make fix     # Fix issues and format
+```
+
+### Database
+
+```bash
+make db-check   # Test database connection
+make db-create  # Create all tables
+make db-reset   # Drop and recreate tables (careful!)
+```
+
+### Deployment
+
+```bash
+make deploy       # Deploy to AWS (dev)
+make deploy-prod  # Deploy to AWS (production)
 ```
 
 ## Author
