@@ -24,6 +24,11 @@ Parameters:
       - prod
     Description: "Deployment environment (dev for development, prod for final presentation)"
 
+  DatabaseEndpoint:
+    Type: String
+    Description: RDS MysQL endpoint (created separately)
+    Default: ""
+
 Resources:
   # S3 Bucket for Excel file uploads
   ExcelFilesBucket:
