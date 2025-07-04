@@ -1,0 +1,52 @@
+[project]
+name = "e1-certification"
+version = "0.1.0"
+description = "E1 Project for SIMPLON Certification"
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.39.3",
+    "cryptography>=45.0.5",
+    "fastapi[standard]>=0.115.14",
+    "mangum>=0.19.0",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.0",
+    "pydantic>=2.11.7",
+    "pydantic-settings>=2.10.1",
+    "pymysql>=1.1.1",
+    "sqlalchemy>=2.0.41",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "ipython>=9.4.0",
+    "mypy>=1.16.1",
+    "pre-commit>=4.2.0",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.0.0",
+    "pytest-cov>=6.2.1",
+    "rich>=14.0.0",
+    "ruff>=0.12.2",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+ignore = ["E501", "B008", "W191"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+e1_certification = ["py.typed"]

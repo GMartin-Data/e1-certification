@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  e1-certification
+  AWS Serverless ETL pipeline and REST API for Excel to MySQL data transformation
+
+# Global settings for all lambda functions
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 300
+    MemorySize: 512
+    Environment:
+      Variables:
+        LOG_LEVEL: INFO
+
+Parameters:
+  # Allow environment-specific configurations
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    Description: "Deployment environment (dev for development, prod for final presentation)"
+
+Resources:
+  # S3 Bucket for Excel file uploads
+  ExcelFilesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "e1-certification-excel-${Environment}-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # We'll add these resources in later phases
+  # - RDS MySQL Instance (Phase 2)
+  # - Lambda Functions (Phase 3)
+  # - EventBridge Rules (Phase 3)
+  # - API Gateway (Phase 4)
+
+Outputs:
+  # Output important values for use in application
+  ExcelBucketName:
+    Description: S3 bucket name for Excel file uploads
+    Value: !Ref ExcelFilesBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-ExcelBucketName"
+
+  Region:
+    Description: AWS region
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Sub "${AWS::StackName}-Region"
