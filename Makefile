@@ -30,9 +30,9 @@ db-create: ## Create database tables
 .PHONY: db-reset
 db-reset: ## Drop and recreate all tables
 	@echo "⚠️  This will DELETE all data!"
-	@read -p "Are you sure? [y/N] " -n 1 -r; \
-	echo ""; \
-	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+	@echo -n "Are you sure? [y/N] "
+	@read REPLY && \
+	if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
 		python -c "from e1_certification.db import Base, get_engine; Base.metadata.drop_all(get_engine()); Base.metadata.create_all(get_engine()); print('✅ Database reset complete')"; \
 	fi
 
