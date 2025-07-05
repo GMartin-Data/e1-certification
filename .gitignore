@@ -117,3 +117,8 @@ site/
 # Package Management
 pip-log.txt
 pip-delete-this-directory.txt
+
+# Data
+echo "data/excel/*.xlsx" >> .gitignore
+echo "data/excel/*.xls" >> .gitignore
+echo "!data/excel/**/.gitkeep" >> .gitignore

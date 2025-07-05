@@ -36,6 +36,15 @@ db-reset: ## Drop and recreate all tables
 		python -c "from e1_certification.db import Base, get_engine; Base.metadata.drop_all(get_engine()); Base.metadata.create_all(get_engine()); print('✅ Database reset complete')"; \
 	fi
 
+# ========== ETL Commands ==========
+.PHONY: upload
+upload: ## Upload Excel files to S3
+	python scripts/upload_to_s3.py
+
+.PHONY: setup-cron
+setup-cron: ## Set up cron job for automatic uploads
+	./scripts/setup_upload_cron.sh
+
 # ========== Testing Commands ==========
 .PHONY: test
 test: ## Run all tests
