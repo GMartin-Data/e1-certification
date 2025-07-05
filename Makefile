@@ -36,6 +36,11 @@ db-reset: ## Drop and recreate all tables
 		python -c "from e1_certification.db import Base, get_engine; Base.metadata.drop_all(get_engine()); Base.metadata.create_all(get_engine()); print('✅ Database reset complete')"; \
 	fi
 
+.PHONY: db-truncate
+db-truncate: ## Empty all tables (keep structure)
+	@echo "🗑️ Truncating all tables..."
+	@python scripts/truncate_tables.py
+
 # ========== ETL Commands ==========
 .PHONY: upload
 upload: ## Upload Excel files to S3
@@ -44,6 +49,14 @@ upload: ## Upload Excel files to S3
 .PHONY: setup-cron
 setup-cron: ## Set up cron job for automatic uploads
 	./scripts/setup_upload_cron.sh
+
+.PHONY: etl-test
+etl-test: ## Test ETL processing with local Excel files
+	python scripts/test_etl_local.py
+
+.PHONY: etl-run
+etl-run: db-truncate etl-test ## Truncate tables and run full ETL
+	@echo "✅ Full ETL pipeline complete!"
 
 # ========== Testing Commands ==========
 .PHONY: test
