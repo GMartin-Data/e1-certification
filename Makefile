@@ -110,6 +110,16 @@ deploy: build ## Deploy to AWS (dev environment)
 deploy-prod: build ## Deploy to AWS (prod environment)
 	sam deploy --parameter-overrides Environment=prod
 
+.PHONY: lambda-deps
+lambda-deps: ## Export dependencies for Lambda
+	@echo "📦 Exporting dependencies for Lambda..."
+	@uv pip compile pyproject.toml -o src/requirements.txt
+
+.PHONY: logs
+logs: ## Tail CloudWatch logs for ETL Lambda
+	@echo "📋 Tailing Lambda logs (Ctrl+C to stop)..."
+	@aws logs tail /aws/lambda/$${STACK_NAME:-e1-certification-dev}-process-excel --follow
+
 # ========== Cleanup Commands ==========
 .PHONY: clean
 clean: ## Clean temporary files
