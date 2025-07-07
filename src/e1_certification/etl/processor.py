@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from sqlalchemy import text
 
 from e1_certification.db import get_db_session
 from e1_certification.db.models import MODEL_REGISTRY
@@ -162,12 +163,47 @@ class CollibraETLProcessor:
 
     def process_all(self) -> dict[str, Any]:
         """
-        Process all Excel files in the correct order.
+        Process all Excel files in the correct order with FULL REFRESH strategy.
+
+        This method performs a complete database refresh:
+        1. Truncates ALL existing tables
+        2. Loads fresh data from Excel files in the correct order
+
+        This ensures data consistency and prevents duplicate key errors
+        when processing repeated batches.
 
         Returns:
             Processing statistics
+
+        Example output (success):
+            {
+                "communautes": {"read": 20, "loaded": 20},
+                "domaines": {"read": 145, "loaded": 145},
+                "data_tables": {"read": 1356, "loaded": 1356},
+                "data_colonnes": {"read": 61113, "loaded": 61113},
+                "errors": []
+            }
+
+        Example output (partial processing):
+            {
+                "communautes": {"read": 20, "loaded": 20},
+                "domaines": {"read": 0, "loaded": 0},  # File not provided
+                "data_tables": {"read": 0, "loaded": 0},  # File not provided
+                "data_colonnes": {"read": 0, "loaded": 0},  # File not provided
+                "errors": []
+            }
+
+        Example output (with error):
+            {
+                "communautes": {"read": 20, "loaded": 20},
+                "domaines": {"read": 145, "loaded": 0},
+                "data_tables": {"read": 0, "loaded": 0},
+                "data_colonnes": {"read": 0, "loaded": 0},
+                "errors": ["Foreign key constraint failed"]
+            }
         """
         stats = {
+            "truncated_tables": [],
             "communautes": {"read": 0, "loaded": 0},
             "domaines": {"read": 0, "loaded": 0},
             "data_tables": {"read": 0, "loaded": 0},
@@ -179,6 +215,44 @@ class CollibraETLProcessor:
         coms_dict = {}
 
         try:
+            # ===== FULL REFRESH: Truncate all tables before loading =====
+            with get_db_session() as session:
+                logger.info("🗑️ Starting full database refresh...")
+
+                # Get database name from connection
+                db_name_result = session.execute(text("SELECT DATABASE()"))
+                db_name = db_name_result.scalar()
+
+                # Discover all tables in the database
+                result = session.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.tables "
+                        "WHERE table_schema = :schema AND table_type = 'BASE TABLE' "
+                        "ORDER BY table_name"
+                    ),
+                    {"schema": db_name},
+                )
+
+                tables = [row[0] for row in result]
+                logger.info(
+                    f"📋 Found {len(tables)} tables to truncate: {', '.join(tables)}"
+                )
+                stats["truncated_tables"] = tables
+
+                # Disable foreign key checks for truncation
+                session.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+
+                # Truncate each table
+                for table in tables:
+                    session.execute(text(f"TRUNCATE TABLE {table}"))
+                    logger.info(f"  ✂️ Truncated table: {table}")
+
+                # Re-enable foreign key checks
+                session.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
+                session.commit()
+
+            # ===== NORMAL PROCESSING =====
+
             # 1. Process communities first (no dependencies)
             if "communautes" in self.file_paths:
                 df_coms = pd.read_excel(self.file_paths["communautes"])
