@@ -8,8 +8,8 @@ Description: >
 Globals:
   Function:
     Runtime: python3.12
-    Timeout: 300
-    MemorySize: 512
+    Timeout: 900
+    MemorySize: 1024
     Environment:
       Variables:
         LOG_LEVEL: INFO
@@ -23,11 +23,6 @@ Parameters:
       - dev
       - prod
     Description: "Deployment environment (dev for development, prod for final presentation)"
-
-  DatabaseEndpoint:
-    Type: String
-    Description: RDS MysQL endpoint (created separately)
-    Default: ""
 
 Resources:
   # S3 Bucket for Excel file uploads
@@ -53,10 +48,98 @@ Resources:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
 
+  # Lambda Function for Excel Processing
+  ProcessExcelFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-process-excel"
+      CodeUri: src/
+      Handler: e1_certification.lambda_handlers.process_excel.lambda_handler
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt DatabaseInstance.Endpoint.Address
+          DB_NAME: e1_certification
+          DB_USER: admin
+          DB_PASSWORD_PARAM: !Sub "/e1-certification/${Environment}/db-password"
+          S3_BUCKET_NAME: !Ref ExcelFilesBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ExcelFilesBucket
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub "e1-certification/${Environment}/*"
+
+  # EventBridge Schedule Rule
+  # This triggers the Lambda on a defined schedule
+  BatchProcessingSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Trigger batch ETL processing daily at 2 AM UTC"
+      ScheduleExpression: "cron(0 2 * * ? *)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt ProcessExcelFunction.Arn
+          Id: "BatchETLTarget"
+
+  # Permission for EventBridge to invoke Lambda
+  BatchProcessingPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ProcessExcelFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt BatchProcessingSchedule.Arn
+
+  # Security Group for RDS
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RDS MySQL instance
+      VpcId: vpc-0989125da50851c97
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0 # We'll restrict this later
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-db-sg"
+
+  # DB Subnet Group for RDS(using existing subnets)
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS MySQL instance
+      SubnetIds:
+        - subnet-0bb0adfe654d9079a # eu-west-3a
+        - subnet-03435c1a336da7a90 # eu-west-3b
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-db-subnet-group"
+
+  # RDS MySQL Instance
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub "${AWS::StackName}-mysql"
+      DBInstanceClass: db.t3.micro # Smallest/cheapest instance
+      Engine: mysql
+      EngineVersion: "8.0.39"
+      MasterUsername: admin
+      MasterUserPassword: !Sub "{{resolve:ssm-secure:/e1-certification/${Environment}/db-password}}"
+      DBName: e1_certification
+      AllocatedStorage: "20" # 20 GB minimum
+      StorageType: gp2
+      VPCSecurityGroups:
+        - !GetAtt DatabaseSecurityGroup.GroupId
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      BackupRetentionPeriod: 0 # No backups (saves money)
+      MultiAZ: false # Single AZ (saves money)
+      PubliclyAccessible: true # So you can connect from home
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-mysql"
+
   # We'll add these resources in later phases
-  # - RDS MySQL Instance (Phase 2)
-  # - Lambda Functions (Phase 3)
-  # - EventBridge Rules (Phase 3)
   # - API Gateway (Phase 4)
 
 Outputs:
@@ -72,3 +155,16 @@ Outputs:
     Value: !Ref AWS::Region
     Export:
       Name: !Sub "${AWS::StackName}-Region"
+
+  ProcessExcelFunctionArn:
+    Description: ARN of the Excel processing Lambda function
+    Value: !GetAtt ProcessExcelFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ProcessExcelFunctionArn"
+
+  # EventBridge Rule ARN
+  BatchProcessingScheduleArn:
+    Description: ARN of the EventBridge batch processing rule
+    Value: !GetAtt BatchProcessingSchedule.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-BatchProcessingScheduleArn"
