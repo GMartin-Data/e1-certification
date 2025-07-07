@@ -58,6 +58,11 @@ etl-test: ## Test ETL processing with local Excel files
 etl-run: db-truncate etl-test ## Truncate tables and run full ETL
 	@echo "✅ Full ETL pipeline complete!"
 
+# ========== API Development Commands ==========
+.PHONY: api-local
+api-local:  ## Run FastAPI locally with auto-reload
+	cd src && fastapi dev e1_certification/api/main.py --port 8000
+
 # ========== Testing Commands ==========
 .PHONY: test
 test: ## Run all tests
