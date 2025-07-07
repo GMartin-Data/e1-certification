@@ -6,6 +6,7 @@ Handles connection pooling and lifecycle for serverless execution.
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
+from typing import Any
 
 from sqlalchemy import create_engine, event, pool, text
 from sqlalchemy.engine import Engine
@@ -43,20 +44,26 @@ def create_db_engine(
             "Please set DB_HOST, DB_USER, and DB_PASSWORD environment variables."
         )
 
-    # Lambda-optimized settings
-    engine_config = {
+    # Base config
+    engine_config: dict[str, Any] = {
         "pool_pre_ping": True,  # Verify connections before use
-        "pool_size": pool_size,
-        "max_overflow": max_overflow,
-        "pool_timeout": pool_timeout,
-        "pool_recycle": pool_recycle,  # Recycle connections after one hour
         "echo": settings.log_level == "DEBUG",  # SQL logging in debug mode
     }
 
-    # For Lambda, use Nullpool to prevent connection leaks
+    # For Lambda, use Nullpool wihout pool parameters to prevent connection leaks
     if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
         logger.info("📡 Detected Lambda environment, using NullPool")
         engine_config["poolclass"] = pool.NullPool
+    else:
+        # Only add pool settings for non-Lambda environments
+        engine_config.update(
+            {
+                "pool_size": pool_size,
+                "max_overflow": max_overflow,
+                "pool_timeout": pool_timeout,
+                "pool_recycle": pool_recycle,
+            }
+        )
 
     engine = create_engine(settings.database_url, **engine_config)
 

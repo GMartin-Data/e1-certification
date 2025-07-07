@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     db_name: str = Field(default="e1_certification", description="Database name")
     db_user: str | None = Field(default=None, description="Database username")
     db_password: str | None = Field(default=None, description="Database password")
+    db_password_param: str | None = Field(
+        default=None, description="SSM parameter for database password"
+    )
 
     # API Configuration
     api_key: str | None = Field(default=None, description="API key for authentication")
@@ -60,13 +63,39 @@ class Settings(BaseSettings):
         return v
 
     @property
+    def database_password(self) -> str | None:
+        """
+        Get database password from environment or SSM.
+
+        In Lambda: Fetches from SSM Parameter Store
+        Locally: Uses DB_PASSWORD from .env
+        """
+        # If running in Lamba with SSM parameter name
+        if self.db_password_param:
+            try:
+                import boto3
+
+                ssm = boto3.client("ssm", region_name=self.aws_region)
+                response = ssm.get_parameter(
+                    Name=self.db_password_param, WithDecryption=True
+                )
+                return response["Parameter"]["Value"]
+            except Exception as e:
+                print(f"❌ Failed to fetch password from SSM: {e}")
+                return None
+
+        # Otherwise use local environment variable
+        return self.db_password
+
+    @property
     def database_url(self) -> str | None:
         """Construct database URL for SQLAlchemy."""
-        if not all([self.db_host, self.db_user, self.db_password]):
+        password = self.database_password
+        if not all([self.db_host, self.db_user, password]):
             return None
         else:
             return (
-                f"mysql+pymysql://{self.db_user}:{self.db_password}"
+                f"mysql+pymysql://{self.db_user}:{password}"
                 f"@{self.db_host}:{self.db_port}/{self.db_name}"
             )
 
