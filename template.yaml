@@ -73,8 +73,10 @@ Resources:
   BatchProcessingSchedule:
     Type: AWS::Events::Rule
     Properties:
-      Description: "Trigger batch ETL processing daily at 2 AM UTC"
-      ScheduleExpression: "cron(0 2 * * ? *)"
+      Description: "Trigger batch ETL processing every Sunday at 1:30 AM UTC"
+      ScheduleExpression: "cron(30 1 ? * SUN *)"
+      # Test option (commented out):
+      # ScheduleExpression: "rate(5 minutes)"  # For testing
       State: ENABLED
       Targets:
         - Arn: !GetAtt ProcessExcelFunction.Arn
