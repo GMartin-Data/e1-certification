@@ -30,11 +30,33 @@ db-create: ## Create database tables
 .PHONY: db-reset
 db-reset: ## Drop and recreate all tables
 	@echo "⚠️  This will DELETE all data!"
-	@read -p "Are you sure? [y/N] " -n 1 -r; \
-	echo ""; \
-	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+	@echo -n "Are you sure? [y/N] "
+	@read REPLY && \
+	if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
 		python -c "from e1_certification.db import Base, get_engine; Base.metadata.drop_all(get_engine()); Base.metadata.create_all(get_engine()); print('✅ Database reset complete')"; \
 	fi
+
+.PHONY: db-truncate
+db-truncate: ## Empty all tables (keep structure)
+	@echo "🗑️ Truncating all tables..."
+	@python scripts/truncate_tables.py
+
+# ========== ETL Commands ==========
+.PHONY: upload
+upload: ## Upload Excel files to S3
+	python scripts/upload_to_s3.py
+
+.PHONY: setup-cron
+setup-cron: ## Set up cron job for automatic uploads
+	./scripts/setup_upload_cron.sh
+
+.PHONY: etl-test
+etl-test: ## Test ETL processing with local Excel files
+	python scripts/test_etl_local.py
+
+.PHONY: etl-run
+etl-run: db-truncate etl-test ## Truncate tables and run full ETL
+	@echo "✅ Full ETL pipeline complete!"
 
 # ========== Testing Commands ==========
 .PHONY: test
@@ -87,6 +109,16 @@ deploy: build ## Deploy to AWS (dev environment)
 .PHONY: deploy-prod
 deploy-prod: build ## Deploy to AWS (prod environment)
 	sam deploy --parameter-overrides Environment=prod
+
+.PHONY: lambda-deps
+lambda-deps: ## Export dependencies for Lambda
+	@echo "📦 Exporting dependencies for Lambda..."
+	@uv pip compile pyproject.toml -o src/requirements.txt
+
+.PHONY: logs
+logs: ## Tail CloudWatch logs for ETL Lambda
+	@echo "📋 Tailing Lambda logs (Ctrl+C to stop)..."
+	@aws logs tail /aws/lambda/$${STACK_NAME:-e1-certification-dev}-process-excel --follow
 
 # ========== Cleanup Commands ==========
 .PHONY: clean

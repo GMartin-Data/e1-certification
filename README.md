@@ -1,125 +1,199 @@
-# e1-certification
+# E1 Certification - Data Catalog ETL Pipeline
 
-AWS Serverless ETL pipeline and REST API for Excel to MySQL data transformation.
+A serverless ETL pipeline for synchronizing Collibra data catalog metadata to AWS RDS MySQL, with automated weekly refresh and REST API access.
 
-## Overview
+## 🚀 Quick Start
 
-This project implements:
+```bash
+# Clone and setup
+git clone https://github.com/your-org/e1-certification.git
+cd e1-certification
+make install
 
-- Automated Excel to MySQL data pipeline using AWS Lambda
-- REST API with authentication for database operations
-- Infrastructure as Code using AWS SAM
+# Configure environment
+cp .env.example .env
+# Edit .env with your settings
 
-## Project Status
+# Deploy to AWS
+make deploy-dev
 
-🚧 Under Development - Phase 2: Database Layer Complete ✅
+# Upload Excel files
+make upload
+```
 
-## Technology Stack
+## 📋 Overview
 
+This project automates the synchronization of data catalog metadata from Excel exports to a cloud database, providing:
+
+- **Automated weekly ETL** processing via AWS Lambda
+- **Full database refresh** strategy to ensure consistency
+- **REST API** for querying the synchronized data
+- **Serverless architecture** for cost efficiency
+
+## 📚 Documentation
+
+### Architecture & Workflows
+
+- [ETL Workflow Architecture](docs/architecture/etl-workflow.md) - Detailed ETL process with diagrams
+- [System Architecture](docs/architecture/overview.md) - Overall system design
+
+### Operational Guides
+
+- [Operations Guide](docs/guides/operations.md) - Day-to-day operations and monitoring
+- [Setup Guide](docs/guides/setup.md) - Detailed installation instructions
+- [Deployment Guide](docs/guides/deployment.md) - AWS deployment procedures
+
+### API Documentation
+
+- [API Endpoints](docs/api/endpoints.md) - REST API reference
+
+### Support
+
+- [Troubleshooting Guide](docs/troubleshooting.md) - Common issues and solutions
+
+## 🏗️ Architecture
+
+```mermaid
+graph LR
+    A[Excel Files] -->|Weekly Upload| B[S3 Bucket]
+    B -->|EventBridge| C[Lambda ETL]
+    C -->|Full Refresh| D[RDS MySQL]
+    D -->|Query| E[API Gateway]
+    E -->|REST| F[Client Apps]
+```
+
+## 🛠️ Technology Stack
+
+- **AWS Services**: Lambda, S3, RDS MySQL, EventBridge, API Gateway
 - **Language**: Python 3.12
-- **Cloud**: AWS (Lambda, S3, RDS MySQL, API Gateway)
-- **IaC**: AWS SAM
-- **API**: FastAPI
-- **ORM**: SQLAlchemy 2.0
+- **Framework**: AWS SAM (Serverless Application Model)
+- **Libraries**: SQLAlchemy, Pandas, Pydantic
 
-## Setup Instructions
+## 📁 Project Structure
+
+```
+e1-certification/
+├── src/                    # Source code
+│   ├── e1_certification/   # Main package
+│   │   ├── api/           # API endpoints
+│   │   ├── db/            # Database models
+│   │   ├── etl/           # ETL processing
+│   │   └── lambda_handlers/# Lambda functions
+├── scripts/               # Utility scripts
+├── tests/                 # Test suite
+├── docs/                  # Documentation
+├── template.yaml          # SAM template
+└── Makefile              # Dev commands
+```
+
+## 🔧 Development
 
 ### Prerequisites
 
-- Python 3.12
-- AWS CLI configured with credentials
-- SAM CLI installed
-- uv package manager
+- Python 3.12+
+- AWS CLI configured
+- AWS SAM CLI
+- Docker (for local testing)
+- Make
 
-### Quick Start
-
-1. Clone the repository:
-
-   ```bash
-   git clone <your-repo-url>
-   cd e1-certification
-   ```
-
-2. Set up the development environment:
-
-   ```bash
-   uv venv
-   uv sync --dev
-   uv pip install -e .
-   ./scripts/setup_local.sh
-   ```
-
-3. Configure your environment:
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your AWS and database credentials
-   ```
-
-4. Deploy infrastructure:
-   ```bash
-   sam build
-   sam deploy --guided
-   ```
-
-## Project Structure
-
-```
-src/e1_certification/
-├── api/          # FastAPI application
-├── etl/          # Excel processing logic
-├── db/           # Database models and connections
-├── utils/        # Shared utilities
-└── config.py     # Configuration management
-```
-
-## Development
-
-## Development
-
-### Quick Commands
-
-We use a Makefile for common tasks:
+### Local Development
 
 ```bash
-make help         # Show all available commands
-make setup        # Initial project setup
-make test         # Run all tests
-make dev          # Run quick checks (lint + unit tests)
+# Install dependencies
+make install
+
+# Run tests
+make test
+
+# Run local ETL
+make etl-local
+
+# Start local API
+make api-local
 ```
 
-### Testing
+### Environment Variables
+
+Create a `.env` file from `.env.example`:
 
 ```bash
-make test              # Run all tests
-make test-unit         # Run unit tests only (fast)
-make test-integration  # Run integration tests only
-make test-coverage     # Generate coverage report
+# AWS Configuration
+AWS_PROFILE=your-profile
+AWS_REGION=eu-west-3
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=e1_certification
+DB_USER=root
+DB_PASSWORD=your-password
+
+# S3 Configuration
+S3_BUCKET_NAME=e1-certification-excel-dev
 ```
 
-### Code Quality
+## 📊 Data Model
+
+The system manages four main entities:
+
+- **Communities** (communautes) - Top-level organizational units
+- **Domains** (domaines) - Business domains within communities
+- **Tables** (data_tables) - Data tables within domains
+- **Columns** (data_colonnes) - Column definitions for tables
+
+## 🚢 Deployment
+
+### Deploy to Development
 
 ```bash
-make lint    # Check code style
-make format  # Format code
-make fix     # Fix issues and format
+make deploy-dev
 ```
 
-### Database
+### Deploy to Production
 
 ```bash
-make db-check   # Test database connection
-make db-create  # Create all tables
-make db-reset   # Drop and recreate tables (careful!)
+make deploy-prod
 ```
 
-### Deployment
+See [Deployment Guide](docs/guides/deployment.md) for detailed instructions.
+
+## 📈 Monitoring
+
+- **CloudWatch Logs**: Lambda execution logs
+- **CloudWatch Metrics**: Performance metrics
+- **S3 Buckets**: File processing status
+
+See [Operations Guide](docs/guides/operations.md) for monitoring details.
+
+## 🧪 Testing
 
 ```bash
-make deploy       # Deploy to AWS (dev)
-make deploy-prod  # Deploy to AWS (production)
+# Unit tests
+make test-unit
+
+# Integration tests
+make test-integration
+
+# Full test suite
+make test
 ```
 
-## Author
+## 🤝 Contributing
 
-Grégory MARTIN
+1. Create a feature branch
+2. Make your changes
+3. Add/update tests
+4. Update documentation
+5. Submit a pull request
+
+## 📄 License
+
+MIT License
+
+## 👥 Team
+
+- Grégory MARTIN - Data/AI Developer
+
+---
+
+For detailed information, explore the [documentation](docs/).
