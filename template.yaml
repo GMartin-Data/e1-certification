@@ -127,6 +127,7 @@ Resources:
       Engine: mysql
       EngineVersion: "8.0.39"
       MasterUsername: admin
+      # GitGuardian: This is a reference to AWS SSM, not an actual password
       MasterUserPassword: !Sub "{{resolve:ssm-secure:/e1-certification/${Environment}/db-password}}"
       DBName: e1_certification
       AllocatedStorage: "20" # 20 GB minimum
