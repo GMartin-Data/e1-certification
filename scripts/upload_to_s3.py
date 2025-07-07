@@ -86,7 +86,7 @@ class ExcelUploader:
             True if successful, False otherwise.
         """
         # Create S3 key with timestamp prefix
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H")
         s3_key = f"incoming/{timestamp}_{file_path.name}"
 
         try:
