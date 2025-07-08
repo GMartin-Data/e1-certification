@@ -2,19 +2,27 @@
 API router configuration.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+import uuid
+from datetime import date
+from typing import Any
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from e1_certification.api.auth import authenticate_user, create_access_token
-from e1_certification.api.dependencies import get_db
+from e1_certification.api.dependencies import get_current_user, get_db
 from e1_certification.api.schemas import (
     CommunauteListResponse,
     CommunauteResponse,
+    DataColonneCreate,
     DataColonneListResponse,
     DataColonneResponse,
+    DataColonneUpdate,
+    DataTableCreate,
     DataTableListResponse,
     DataTableResponse,
+    DataTableUpdate,
     DomaineListResponse,
     DomaineResponse,
     PaginationInfo,
@@ -308,6 +316,193 @@ async def get_table(
     return table
 
 
+# ========== Protected Table Endpoints (CUD) ==========
+@api_router.post(
+    "/tables",
+    response_model=DataTableResponse,
+    tags=["Tables"],
+    summary="➕ Create Table",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Not authenticated"},
+        status.HTTP_404_NOT_FOUND: {"description": "Domain not found"},
+    },
+)
+async def create_table(
+    table: DataTableCreate = Body(
+        ...,
+        example={
+            "nom": "Test Table API Demo",
+            "description": "Table created via API for testing",
+            "domaine_id": ExampleIDs.DOMAIN_ID,
+        },
+    ),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new table.
+
+    **Requires authentication**
+
+    Note: Changes will be overwritten by next ETL run.
+    """
+    logger.info(f"➕ User {current_user['username']} creating table: {table.nom}")
+
+    # NOTE: The table ID can't already exist, due to algorithm choice to generate it
+
+    # Check domain exists
+    domain = db.query(Domaine).filter(Domaine.id == table.domaine_id).first()
+    if not domain:
+        logger.warning(f"⚠️ Domain with ID {table.domaine_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Domain with ID {table.domaine_id} not found",
+        )
+
+    # Create new table with generated IDs and dates
+    new_table = DataTable(
+        id=str(uuid.uuid4()),
+        **table.model_dump(),
+        date_creation=date.today(),
+        date_derniere_modification=date.today(),
+    )
+
+    db.add(new_table)
+    db.commit()
+    db.refresh(new_table)
+
+    logger.info(f"✅ Table {new_table.id} created by {current_user['username']}")
+    return new_table
+
+
+@api_router.put(
+    "/tables/{table_id}",
+    response_model=DataTableResponse,
+    tags=["Tables"],
+    summary="✏️ Update Table",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Not authenticated"},
+        status.HTTP_404_NOT_FOUND: {"description": "Table not found"},
+        status.HTTP_400_BAD_REQUEST: {"description": "Invalid update data"},
+    },
+)
+async def update_table(
+    table_id: str = Path(..., description="Table ID"),
+    table_update: DataTableUpdate = Body(
+        ...,
+        example={
+            "nom": "Updated Table Name",
+            "description": "Updated description via API",
+            "domaine_id": ExampleIDs.DOMAIN_WITH_MANY_TABLES,  # Different domain than for CREATE
+        },
+    ),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update an existing table.
+
+    **Requires authentication**
+
+    Only provided fields will be updated.
+    The modification date will be automatically set.
+
+    Note: Changes will be overwritten by next ETL run.
+    """
+    logger.info(f"✏️ User {current_user['username']} updating table: {table_id}")
+
+    # Get existing table
+    table = db.query(DataTable).filter(DataTable.id == table_id).first()
+    if not table:
+        logger.warning(f"⚠️ Table with ID {table_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Table with ID {table_id} not found",
+        )
+
+    # Update only provided fields
+    update_data = table_update.model_dump(exclude_unset=True)
+
+    # If domain_id is being updated, verify it exists
+    if "domaine_id" in update_data:
+        domain = (
+            db.query(Domaine).filter(Domaine.id == update_data["domaine_id"]).first()
+        )
+        if not domain:
+            logger.warning(f"⚠️ Domain with ID {update_data['domaine_id']} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Domain with ID {update_data['domaine_id']} not found",
+            )
+
+    # Apply updates
+    for field, value in update_data.items():
+        setattr(table, field, value)
+
+    # Update modification date
+    table.date_derniere_modification = date.today()  # type: ignore[assignment]
+
+    db.commit()
+    db.refresh(table)
+
+    logger.info(f"✅ Table {table_id} updated by {current_user['username']}")
+    return table
+
+
+@api_router.delete(
+    "/tables/{table_id}",
+    tags=["Tables"],
+    summary="🗑️ Delete Table",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Not authenticated"},
+        status.HTTP_404_NOT_FOUND: {"description": "Table not found"},
+    },
+)
+async def delete_table(
+    table_id: str = Path(..., description="Table ID"),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Delete a table.
+
+    **Requires authentication**
+
+    ⚠️ **WARNING**: This will also delete all columns belonging to this table!
+
+    Note: Table will be restored on next ETL run.
+    """
+    logger.info(f"🗑️ User {current_user['username']} deleting table: {table_id}")
+
+    # Get existing table
+    table = db.query(DataTable).filter(DataTable.id == table_id).first()
+    if not table:
+        logger.warning(f"⚠️ Table with ID {table_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Table with ID {table_id} not found",
+        )
+
+    # Count columns that will be deleted (for logging)
+    column_count = (
+        db.query(DataColonne).filter(DataColonne.data_table_id == table_id).count()
+    )
+
+    # Delete table (cascades to columns)
+    db.delete(table)
+    db.commit()
+
+    logger.info(
+        f"✅ Table with ID: {table_id} and its {column_count} columns deleted by {current_user['username']}"
+    )
+
+    # 204 No Content - successful deletion returns no body
+    return None
+
+
 # ========== Column Endpoints ==========
 @api_router.get(
     "/tables/{table_id}/columns",
@@ -407,6 +602,192 @@ async def get_column(
     return column
 
 
+# ========== Protected Column Endpoints (CUD) ==========
+@api_router.post(
+    "/columns",
+    response_model=DataColonneResponse,
+    tags=["Columns"],
+    summary="➕ Create Column",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Not authenticated"},
+        status.HTTP_404_NOT_FOUND: {"description": "Table not found"},
+    },
+)
+async def create_column(
+    column: DataColonneCreate = Body(
+        ...,
+        example={
+            "nom": "test_column_api",
+            "description": "Column created via API for testing",
+            "data_type": "VARCHAR(255)",
+            "data_table_id": ExampleIDs.TABLE_ID,
+        },
+    ),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new column.
+
+    **Requires authentication**
+
+    Note: Changes will be overwritten by next ETL run.
+    """
+    logger.info(f"➕ User {current_user['username']} creating column: {column.nom}")
+
+    # Check table exists
+    table = db.query(DataTable).filter(DataTable.id == column.data_table_id).first()
+    if not table:
+        logger.warning(f"⚠️ Table with ID {column.data_table_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Table with ID {column.data_table_id} not found",
+        )
+
+    # Create new column with generated ID and dates
+    new_column = DataColonne(
+        id=str(uuid.uuid4()),
+        **column.model_dump(),
+        date_creation=date.today(),
+        date_derniere_modification=date.today(),
+    )
+
+    db.add(new_column)
+    db.commit()
+    db.refresh(new_column)
+
+    logger.info(
+        f"✅ Column {new_column.id} created in table {column.data_table_id} by {current_user['username']}"
+    )
+    return new_column
+
+
+@api_router.put(
+    "/columns/{column_id}",
+    response_model=DataColonneResponse,
+    tags=["Columns"],
+    summary="✏️ Update Column",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Not authenticated"},
+        status.HTTP_404_NOT_FOUND: {"description": "Column not found"},
+    },
+)
+async def update_column(
+    column_id: str = Path(..., description="Column ID"),
+    column_update: DataColonneUpdate = Body(
+        ...,
+        example={
+            "nom": "updated_column_name",
+            "description": "Updated column description",
+            "data_type": "INTEGER",
+            "data_table_id": ExampleIDs.TABLE_WITH_MANY_COLUMNS,  # Different table than for CREATE column
+        },
+    ),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update an existing column.
+
+    **Requires authentication**
+
+    Only provided fields will be updated.
+    The modification date will be automatically set.
+
+    Note: Change will be overwritten by next ETL run.
+    """
+    logger.info(f"✏️ User {current_user['username']} updating column: {column_id}")
+
+    # Get existing column
+    column = db.query(DataColonne).filter(DataColonne.id == column_id).first()
+    if not column:
+        logger.warning(f"⚠️ Column with ID {column_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Column with ID {column_id} not found",
+        )
+
+    # Update only provided fields
+    update_data = column_update.model_dump(exclude_unset=True)
+
+    # If data_table_id is being updated, verify it exists
+    if "data_table_id" in update_data:
+        table = (
+            db.query(DataTable)
+            .filter(DataTable.id == update_data["data_table_id"])
+            .first()
+        )
+        if not table:
+            logger.warning(f"⚠️ Table with ID {update_data['data_table_id']} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Table with ID {update_data['data_table_id']} not found",
+            )
+
+    # Apply updates
+    for field, value in update_data.items():
+        setattr(column, field, value)
+
+    # Update modification date
+    column.date_derniere_modification = date.today()  # type: ignore[assignment]
+
+    db.commit()
+    db.refresh(column)
+
+    logger.info(f"✅ Column {column_id} updated by {current_user['username']}")
+    return column
+
+
+@api_router.delete(
+    "/columns/{column_id}",
+    tags=["Columns"],
+    summary="🗑️ Delete Column",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Not authenticated"},
+        status.HTTP_404_NOT_FOUND: {"description": "Column not found"},
+    },
+)
+async def delete_column(
+    column_id: str = Path(..., description="Column ID"),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Delete a column.
+
+    **Requires authentication**
+
+    Note: Column will be restored on next ETL run.
+    """
+    logger.info(f"🗑️ User {current_user['username']} deleting column: {column_id}")
+
+    # Get existing column
+    column = db.query(DataColonne).filter(DataColonne.id == column_id).first()
+    if not column:
+        logger.warning(f"⚠️ Column with ID {column_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Column with ID {column_id} not found",
+        )
+
+    # Store table ID for logging
+    table_id = column.data_table_id
+
+    # Delete column
+    db.delete(column)
+    db.commit()
+
+    logger.info(
+        f"✅ Column {column_id} deleted from table {table_id} by {current_user['username']}"
+    )
+
+    # 204 No Content - successful deletion returns no body
+    return None
+
+
 # ========== Authentication Endpoints ==========
 @api_router.post(
     "/auth/login",
@@ -420,7 +801,7 @@ async def get_column(
 )
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     """
-    Login with username and password to get JWT token.Depends
+    Login with username and password to get JWT token.
 
     Test credentials:
     - Username: `admin`, Password: `admin123`
@@ -450,3 +831,26 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         token_type="bearer",
         expires_in=settings.jwt_expiration_minutes * 60,  # Convert minutes to seconds
     )
+
+
+@api_router.get(
+    "/auth/me",
+    tags=["Authentication"],
+    summary="🙋 Current User",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Not authenticated"},
+    },
+)
+async def get_current_user_info(
+    current_user: dict[str, Any] = Depends(get_current_user),
+):
+    """
+    Get current authenticated user info.
+
+    Requires valid JWT token in Authorization header.
+    """
+    logger.info(f"📋 User {current_user['username']} requested their info")
+    return {
+        "username": current_user["username"],
+        "message": "Authentication is working",
+    }

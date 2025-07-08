@@ -12,7 +12,7 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict
 
-# ========== Response Models ==========
+# ========== Only Response Models ==========
 
 
 class CommunauteResponse(BaseModel):
@@ -45,6 +45,29 @@ class DomaineResponse(BaseModel):
     communaute_id: int  # Foreign key to community
 
 
+# ========== Base Models for Tables ==========
+class DataTableBase(BaseModel):
+    """Shared fields for table operations."""
+
+    nom: str
+    description: str | None = None
+    domaine_id: str
+
+
+class DataTableCreate(DataTableBase):
+    """Input for creating tables (no ID, no dates required)."""
+
+    pass  # Just inherits nom, description, domaine_id
+
+
+class DataTableUpdate(BaseModel):
+    """Input for updating tables (all fields optional)."""
+
+    nom: str | None = None
+    description: str | None = None
+    domaine_id: str | None = None
+
+
 class DataTableResponse(BaseModel):
     """
     Data table response model.
@@ -61,6 +84,33 @@ class DataTableResponse(BaseModel):
     date_creation: date | None = None
     date_derniere_modification: date | None = None
     domaine_id: str  # Foreign key to domain
+
+
+# ========== Base Models for Columns ==========
+
+
+class DataColonneBase(BaseModel):
+    """Shared fields for column operations."""
+
+    nom: str
+    description: str | None = None
+    data_type: str | None = None
+    data_table_id: str
+
+
+class DataColonneCreate(DataColonneBase):
+    """Input for creating columns (no ID, no dates required)."""
+
+    pass  # Just inherits nom, description, data_type, data_table_id
+
+
+class DataColonneUpdate(BaseModel):
+    """Input for updating columns (all fields optional)."""
+
+    nom: str | None = None
+    description: str | None = None
+    data_type: str | None = None
+    data_table_id: str | None = None
 
 
 class DataColonneResponse(BaseModel):
