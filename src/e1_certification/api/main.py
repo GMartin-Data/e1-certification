@@ -16,6 +16,20 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",  # Swagger UI
     redoc_url="/redoc",  # ReDoc UI
+    openapi_tags=[
+        {"name": "Testing", "description": "🧪 Test endpoints for development"},
+        {"name": "Communities", "description": "🏛️ Community operations"},
+        {"name": "Domains", "description": "📁 Domain operations"},
+        {
+            "name": "Tables",
+            "description": "📅 Table operations (auth required for modifications)",
+        },
+        {
+            "name": "Columns",
+            "description": "📏 Column operations (auth required for modifications)",
+        },
+        {"name": "Authentication", "description": "🔐 Login and token management"},
+    ],
 )
 
 # Add CORS middleware (to configure properly later)
