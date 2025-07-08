@@ -25,6 +25,23 @@ from e1_certification.db.models import (
 )
 from e1_certification.utils.logging_config import logger
 
+
+class ExampleIDs:
+    """Real IDs from database for testing."""
+
+    COMMUNITY_ID = 6
+    DOMAIN_ID = "01929505-432d-7f75-a3f1-9aecc9464478"
+    TABLE_ID = "018e80b4-9a34-74cf-aabc-3972e0070cc3"
+    COLUMN_ID = "01aa6d4f-5207-4d85-8006-29c311f5c5bb"
+
+    # For filters
+    COMMUNITY_WITH_MANY_DOMAINS = 2  # Has 50+ domains
+    DOMAIN_WITH_MANY_TABLES = "3ba5be8f-98cc-4179-9c9f-df720a664784"  # Has 150+ tables
+    TABLE_WITH_MANY_COLUMNS = (
+        "2c986526-ecf4-43d7-90f1-da0dca3e2b05"  # Has about 1900 columns
+    )
+
+
 api_router = APIRouter()
 
 
@@ -83,7 +100,9 @@ async def get_communities(db: Session = Depends(get_db)):
     },
 )
 async def get_community(
-    community_id: int = Path(..., description="Community ID"),
+    community_id: int = Path(
+        ..., description="Community ID", example=ExampleIDs.COMMUNITY_ID
+    ),
     db: Session = Depends(get_db),
 ):
     """Get a specific community by ID"""
@@ -110,7 +129,11 @@ async def get_community(
 async def get_domains(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(50, ge=1, le=100, description="Items per page"),
-    communaute_id: int | None = Query(None, description="Filter by community ID"),
+    communaute_id: int | None = Query(
+        None,
+        description="Filter by community ID",
+        example=ExampleIDs.COMMUNITY_WITH_MANY_DOMAINS,
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -163,7 +186,8 @@ async def get_domains(
     },
 )
 async def get_domain(
-    domain_id: str = Path(..., description="Domain ID"), db: Session = Depends(get_db)
+    domain_id: str = Path(..., description="Domain ID", example=ExampleIDs.DOMAIN_ID),
+    db: Session = Depends(get_db),
 ):
     """Get a specific domain by ID."""
     logger.info(f"📁 Fetching domain with ID {domain_id}")
@@ -193,7 +217,9 @@ async def get_domain(
     },
 )
 async def get_tables_by_domain(
-    domain_id: str = Path(..., description="Domain ID"),
+    domain_id: str = Path(
+        ..., description="Domain ID", example=ExampleIDs.DOMAIN_WITH_MANY_TABLES
+    ),
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(50, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
@@ -260,7 +286,8 @@ async def get_tables_by_domain(
     },
 )
 async def get_table(
-    table_id: str = Path(..., description="Table ID"), db: Session = Depends(get_db)
+    table_id: str = Path(..., description="Table ID", example=ExampleIDs.TABLE_ID),
+    db: Session = Depends(get_db),
 ):
     """Get a specific table by ID."""
     logger.info(f"📅 Fetching table with ID {table_id}")
@@ -290,7 +317,9 @@ async def get_table(
     },
 )
 async def get_columns_by_table(
-    table_id: str = Path(..., description="Table ID"),
+    table_id: str = Path(
+        ..., description="Table ID", example=ExampleIDs.TABLE_WITH_MANY_COLUMNS
+    ),
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(50, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
@@ -356,7 +385,8 @@ async def get_columns_by_table(
     },
 )
 async def get_column(
-    column_id: str = Path(..., description="Column ID"), db: Session = Depends(get_db)
+    column_id: str = Path(..., description="Column ID", example=ExampleIDs.COLUMN_ID),
+    db: Session = Depends(get_db),
 ):
     """Get a specific column by ID."""
     logger.info(f"📏 Fetching column with ID {column_id}")
