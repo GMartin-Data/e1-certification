@@ -3,8 +3,10 @@ API router configuration.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from e1_certification.api.auth import authenticate_user, create_access_token
 from e1_certification.api.dependencies import get_db
 from e1_certification.api.schemas import (
     CommunauteListResponse,
@@ -16,7 +18,9 @@ from e1_certification.api.schemas import (
     DomaineListResponse,
     DomaineResponse,
     PaginationInfo,
+    TokenResponse,
 )
+from e1_certification.config import settings
 from e1_certification.db.models import (
     Communaute,
     DataColonne,
@@ -401,3 +405,48 @@ async def get_column(
         )
 
     return column
+
+
+# ========== Authentication Endpoints ==========
+@api_router.post(
+    "/auth/login",
+    response_model=TokenResponse,
+    tags=["Authentication"],
+    summary="🔐 Login",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Invalid credentials"},
+    },
+)
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Login with username and password to get JWT token.Depends
+
+    Test credentials:
+    - Username: `admin`, Password: `admin123`
+    - Username: `demo`, Password: `demo123`
+
+    Returns:
+        JWT access token valid for 30 minutes.
+    """
+    logger.info(f"🔐 Login attempt for user: {form_data.username}")
+
+    # Authenticate user
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        logger.warning(f"⚠️ Login failed for user: {form_data.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Create access token
+    access_token = create_access_token(data={"sub": user["username"]})
+
+    logger.info(f"✅ Logging successful for user: {form_data.username}")
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=settings.jwt_expiration_minutes * 60,  # Convert minutes to seconds
+    )

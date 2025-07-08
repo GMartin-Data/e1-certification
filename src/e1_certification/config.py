@@ -38,7 +38,9 @@ class Settings(BaseSettings):
 
     # API Configuration
     api_key: str | None = Field(default=None, description="API key for authentication")
-    jwt_secret_key: str | None = Field(default=None, description="JWT secret key")
+    jwt_secret_key: str = Field(
+        default="dev-secret-key-change-in-production", description="JWT secret key"
+    )
     jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")
     jwt_expiration_minutes: int = Field(default=30, description="JWT token expiration")
 
