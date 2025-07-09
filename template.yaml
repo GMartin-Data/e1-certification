@@ -77,6 +77,7 @@ Resources:
       Handler: e1_certification.api.main.handler # Points to Mangum handler
       Environment:
         Variables:
+          API_GATEWAY_STAGE: "/dev"
           DB_HOST: !GetAtt DatabaseInstance.Endpoint.Address
           DB_NAME: e1_certification
           DB_USER: admin
@@ -97,8 +98,14 @@ Resources:
         ApiEvent:
           Type: Api # SAM shorthand for API Gateway integration
           Properties:
-            Path: /{proxy+} # Catch-all path - forwards any URL path to Lambda
+            Path: /{proxy+} # Catches /docs, /api/v1/*, etc.
             Method: ANY # Accepts all HTTP methods (GET, POST, PUT, DELETE, etc.)
+            RestApiId: !Ref ApiGateway
+        ApiRootEvent:
+          Type: Api
+          Properties:
+            Path: / # Catches /openapi.json, /redoc, etc.
+            Method: ANY
             RestApiId: !Ref ApiGateway
 
   # API Gateway

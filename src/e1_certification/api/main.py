@@ -2,6 +2,8 @@
 FastAPI application for E1 certification REST API.
 """
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
@@ -38,6 +40,7 @@ app = FastAPI(
     This API is primarily for read access and temporary updates.
     """,
     version="1.0.0",
+    root_path=os.environ.get("API_GATEWAY_STAGE", ""),  # For AWS Lambda
     docs_url="/docs",  # Swagger UI
     redoc_url="/redoc",  # ReDoc UI
     openapi_tags=[
