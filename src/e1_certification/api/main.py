@@ -3,6 +3,7 @@ FastAPI application for E1 certification REST API.
 """
 
 import os
+from textwrap import dedent
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +15,8 @@ from e1_certification.utils.logging_config import logger
 # Create FastAPI instance
 app = FastAPI(
     title="E1 Certification API - Collibra Data Catalog",
-    description="""
+    description=dedent(
+        """
     ## 🎯 Overview
 
     REST API for accessing Collibra data catalog metadata.
@@ -32,13 +34,14 @@ app = FastAPI(
     - **Smart filtering**: Tables/columns must be filtered by parent
     - **Pagination**: For large result sets (domains, tables, columns)
     - **JWT Auth**: Secure endpoints for modifications
-    - **ETL Integration**: Data synced from Collibra daily
+    - **ETL Integration**: Data synced from Collibra on a regular basis
 
     ## ⚠️ Note
 
     All modifications will be overwritten by the next ETL run.
     This API is primarily for read access and temporary updates.
-    """,
+    """
+    ).strip(),
     version="1.0.0",
     root_path=os.environ.get("API_GATEWAY_STAGE", ""),  # For AWS Lambda
     docs_url="/docs",  # Swagger UI
