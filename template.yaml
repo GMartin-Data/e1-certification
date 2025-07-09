@@ -68,8 +68,79 @@ Resources:
         - SSMParameterReadPolicy:
             ParameterName: !Sub "e1-certification/${Environment}/*"
 
-  # EventBridge Schedule Rule
-  # This triggers the Lambda on a defined schedule
+  # Lambda Function for REST API
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-api-lambda"
+      CodeUri: src/
+      Handler: e1_certification.api.main.handler # Points to Mangum handler
+      Environment:
+        Variables:
+          API_GATEWAY_STAGE: "/dev"
+          DB_HOST: !GetAtt DatabaseInstance.Endpoint.Address
+          DB_NAME: e1_certification
+          DB_USER: admin
+          DB_PASSWORD_PARAM: !Sub "/e1-certification/${Environment}/db-password"
+          JWT_SECRET_KEY_PARAM: !Sub "/e1-certification/${Environment}/jwt-secret"
+          LOG_LEVEL: INFO
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub "e1-certification/${Environment}/*"
+        - VPCAccessPolicy: {}
+      # VPC Configuration temporarily disabled
+      # Issue: Lambda in VPC cannot reach AWS SSM to fetch JWT secret
+      # because VPC has no NAT Gateway or VPC Endpoints for SSM.
+      # Current solution: Lambda runs outside VPC and connects to RDS
+      # over public internet (RDS is publicly accessible).
+      # TODO for production:
+      # - Option 1: Add VPC Endpoints for SSM
+      # - Option 2: Store JWT secret as Lambda env var (less secure)
+      # - Option 3: Add NAT Gateway (costs ~$45/month)
+      # VpcConfig:
+      #   SecurityGroupIds:
+      #     - !GetAtt DatabaseSecurityGroup.GroupId
+      #   SubnetIds:
+      #     - subnet-0bb0adfe654d9079a
+      #     - subnet-03435c1a336da7a90
+      Events:
+        ApiEvent:
+          Type: Api # SAM shorthand for API Gateway integration
+          Properties:
+            Path: /{proxy+} # Catches /docs, /api/v1/*, etc.
+            Method: ANY # Accepts all HTTP methods (GET, POST, PUT, DELETE, etc.)
+            RestApiId: !Ref ApiGateway
+        ApiRootEvent:
+          Type: Api
+          Properties:
+            Path: / # Catches /openapi.json, /redoc, etc.
+            Method: ANY
+            RestApiId: !Ref ApiGateway
+
+  # API Gateway
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${AWS::StackName}-api-gateway"
+      StageName: !Ref Environment
+      # CORS Configuration
+      # ⚠️ WARNING: This is a DEVELOPMENT configuration!
+      # TODO: For production, implement proper CORS:
+      # - AllowOrigin: "'https://your-frontend-domain.com'"
+      # - AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      # - AllowHeaders: "'Content-Type,Authorization'"
+      # - AllowCredentials: true
+      Cors:
+        AllowMethods: "'*'" # ⚠️ DEV ONLY - Too permissive!
+        AllowHeaders: "'*'" # ⚠️ DEV ONLY - Too permissive!
+        AllowOrigin: "'*'" # ⚠️ DEV ONLY - Allows any website!
+        MaxAge: "'86400'" # OK - 24 hour cache
+      Auth:
+        DefaultAuthorizer: NONE # JWT handled in app
+
+        # EventBridge Schedule Rule
+        # This triggers the Lambda on a defined schedule
+
   BatchProcessingSchedule:
     Type: AWS::Events::Rule
     Properties:
@@ -142,9 +213,6 @@ Resources:
         - Key: Name
           Value: !Sub "${AWS::StackName}-mysql"
 
-  # We'll add these resources in later phases
-  # - API Gateway (Phase 4)
-
 Outputs:
   # Output important values for use in application
   ExcelBucketName:
@@ -171,3 +239,16 @@ Outputs:
     Value: !GetAtt BatchProcessingSchedule.Arn
     Export:
       Name: !Sub "${AWS::StackName}-BatchProcessingScheduleArn"
+
+  # API related outputs
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+
+  ApiFunctionArn:
+    Description: ARN of the API Lambda function
+    Value: !GetAtt ApiFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiFunctionArn"

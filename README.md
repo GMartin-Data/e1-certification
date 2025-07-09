@@ -19,6 +19,12 @@ make deploy-dev
 
 # Upload Excel files
 make upload
+
+# Test API
+curl https://your-api-url/dev/health
+
+# Access Swagger UI
+open https://your-api-url/dev/docs
 ```
 
 ## 📋 Overview
@@ -46,6 +52,8 @@ This project automates the synchronization of data catalog metadata from Excel e
 ### API Documentation
 
 - [API Endpoints](docs/api/endpoints.md) - REST API reference
+- API Base URL: Provided after deployment
+- Swagger UI: Available at `{API_URL}/docs`
 
 ### Support
 
@@ -58,8 +66,9 @@ graph LR
     A[Excel Files] -->|Weekly Upload| B[S3 Bucket]
     B -->|EventBridge| C[Lambda ETL]
     C -->|Full Refresh| D[RDS MySQL]
-    D -->|Query| E[API Gateway]
-    E -->|REST| F[Client Apps]
+    D -->|Query| E[Lambda API]
+    E -->|REST| F[API Gateway]
+    F -->|HTTPS| G[Client Apps]
 ```
 
 ## 🛠️ Technology Stack
@@ -68,6 +77,9 @@ graph LR
 - **Language**: Python 3.12
 - **Framework**: AWS SAM (Serverless Application Model)
 - **Libraries**: SQLAlchemy, Pandas, Pydantic
+- **API Framework**: FastAPI with Mangum adapter
+- **Authentication**: JWT tokens
+- **API Documentation**: OpenAPI/Swagger UI
 
 ## 📁 Project Structure
 
@@ -110,6 +122,12 @@ make etl-local
 
 # Start local API
 make api-local
+
+# Test local API
+curl http://localhost:8000/health
+
+# Access local Swagger UI
+open http://localhost:8000/docs
 ```
 
 ### Environment Variables
@@ -141,12 +159,40 @@ The system manages four main entities:
 - **Tables** (data_tables) - Data tables within domains
 - **Columns** (data_colonnes) - Column definitions for tables
 
+## 🔌 API Access
+
+The REST API provides programmatic access to the catalog data:
+
+- **Swagger UI**: Available at `/docs` for interactive testing
+- **Authentication**: JWT tokens with 30-minute expiration
+- **Rate Limits**: AWS API Gateway defaults apply
+
+See [API Documentation](docs/api/endpoints.md) for detailed endpoint reference.
+
 ## 🚢 Deployment
 
 ### Deploy to Development
 
 ```bash
 make deploy-dev
+```
+
+After deployment, you'll get outputs including:
+
+- **API URL**: `https://{api-id}.execute-api.eu-west-3.amazonaws.com/dev`
+- **Swagger UI**: `https://{api-id}.execute-api.eu-west-3.amazonaws.com/dev/docs`
+
+### Test Deployed API
+
+```bash
+# Get API URL from stack outputs
+API_URL=$(sam list stack-outputs --stack-name e1-certification-dev --output json | jq -r '.[] | select(.OutputKey=="ApiUrl") | .OutputValue')
+
+# Test health endpoint
+curl $API_URL/health
+
+# Access Swagger UI
+echo "Swagger UI: $API_URL/docs"
 ```
 
 ### Deploy to Production

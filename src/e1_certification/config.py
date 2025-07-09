@@ -37,8 +37,12 @@ class Settings(BaseSettings):
     )
 
     # API Configuration
-    api_key: str | None = Field(default=None, description="API key for authentication")
-    jwt_secret_key: str | None = Field(default=None, description="JWT secret key")
+    jwt_secret_key: str = Field(
+        default="dev-secret-key-change-in-production", description="JWT secret key"
+    )
+    jwt_secret_key_param: str | None = Field(
+        default=None, description="SSM parameter name for JWT secret"
+    )
     jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")
     jwt_expiration_minutes: int = Field(default=30, description="JWT token expiration")
 
@@ -98,6 +102,32 @@ class Settings(BaseSettings):
                 f"mysql+pymysql://{self.db_user}:{password}"
                 f"@{self.db_host}:{self.db_port}/{self.db_name}"
             )
+
+    @property
+    def jwt_secret(self) -> str:
+        """
+        Get JWT secret from environment or SSM.
+
+        In Lambda: Fetches from SSM Parameter Store
+        Locally: Uses default or JWT_SECRET_KEY from .env
+        """
+        # If running in Lambda with SSM parameter name
+        if self.jwt_secret_key_param:
+            try:
+                import boto3
+
+                ssm = boto3.client("ssm", region_name=self.aws_region)
+                response = ssm.get_parameter(
+                    Name=self.jwt_secret_key_param, WithDecryption=True
+                )
+                return response["Parameter"]["Value"]
+            except Exception as e:
+                print(f"❌ Failed to fetch JWT secret from SSM: {e}")
+                # Fall back to default/env value
+                return self.jwt_secret_key
+
+        # Otherwise use environment variable or default
+        return self.jwt_secret_key
 
     @property
     def is_production(self) -> bool:
