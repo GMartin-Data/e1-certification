@@ -88,12 +88,21 @@ Resources:
         - SSMParameterReadPolicy:
             ParameterName: !Sub "e1-certification/${Environment}/*"
         - VPCAccessPolicy: {}
-      VpcConfig:
-        SecurityGroupIds:
-          - !GetAtt DatabaseSecurityGroup.GroupId
-        SubnetIds:
-          - subnet-0bb0adfe654d9079a
-          - subnet-03435c1a336da7a90
+      # VPC Configuration temporarily disabled
+      # Issue: Lambda in VPC cannot reach AWS SSM to fetch JWT secret
+      # because VPC has no NAT Gateway or VPC Endpoints for SSM.
+      # Current solution: Lambda runs outside VPC and connects to RDS
+      # over public internet (RDS is publicly accessible).
+      # TODO for production:
+      # - Option 1: Add VPC Endpoints for SSM
+      # - Option 2: Store JWT secret as Lambda env var (less secure)
+      # - Option 3: Add NAT Gateway (costs ~$45/month)
+      # VpcConfig:
+      #   SecurityGroupIds:
+      #     - !GetAtt DatabaseSecurityGroup.GroupId
+      #   SubnetIds:
+      #     - subnet-0bb0adfe654d9079a
+      #     - subnet-03435c1a336da7a90
       Events:
         ApiEvent:
           Type: Api # SAM shorthand for API Gateway integration

@@ -67,6 +67,13 @@ def create_db_engine(
 
     engine = create_engine(settings.database_url, **engine_config)
 
+    logger.info(f"🔗 DB Host: {settings.db_host}")
+    logger.info(f"📊 DB Name: {settings.db_name}")
+    logger.info(f"👤 DB User: {settings.db_user}")
+    logger.info(
+        f"🔐 Password from SSM: {'Yes' if settings.database_password else 'No'}"
+    )
+
     # Add connection event listeners for debugging
     @event.listens_for(engine, "connect")
     def receive_connect(dbapi_connection, connection_record):
