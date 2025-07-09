@@ -37,7 +37,6 @@ class Settings(BaseSettings):
     )
 
     # API Configuration
-    api_key: str | None = Field(default=None, description="API key for authentication")
     jwt_secret_key: str = Field(
         default="dev-secret-key-change-in-production", description="JWT secret key"
     )
