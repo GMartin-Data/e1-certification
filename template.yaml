@@ -81,7 +81,7 @@ Resources:
           DB_NAME: e1_certification
           DB_USER: admin
           DB_PASSWORD_PARAM: !Sub "/e1-certification/${Environment}/db-password"
-          JWT_SECRET_KEY: !Sub "{{resolve:ssm-secure:/e1-certification/${Environment}/jwt-secret}}"
+          JWT_SECRET_KEY_PARAM: !Sub "/e1-certification/${Environment}/jwt-secret"
           LOG_LEVEL: INFO
       Policies:
         - SSMParameterReadPolicy:

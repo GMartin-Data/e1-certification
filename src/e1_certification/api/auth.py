@@ -43,7 +43,7 @@ def create_access_token(data: dict[str, Any]) -> str:
 
     # Create the token
     encoded_jwt = jwt.encode(
-        to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+        to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
     )
 
     logger.debug(f"🔐 Created JWT token expiring at {expire}")
@@ -62,7 +62,7 @@ def decode_access_token(token: str) -> dict[str, Any] | None:
     """
     try:
         payload = jwt.decode(
-            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+            token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
         )
         return payload
     except JWTError as e:
