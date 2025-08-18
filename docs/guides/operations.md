@@ -17,16 +17,40 @@ This guide covers day-to-day operations of the E1 Certification ETL system.
 The system runs automatically every Sunday:
 
 ```mermaid
-timeline
-    title Sunday ETL Schedule
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1a1a1a',
+    'primaryTextColor': '#ffffff',
+    'primaryBorderColor': '#ffffff',
+    'background': '#000000',
+    'mainBkg': '#1a1a1a',
+    'cScale0': '#E8F4F8',
+    'cScale1': '#F0E6FF',
+    'cScale2': '#E6FFE6',
+    'cScaleLabel0': '#000000',
+    'cScaleLabel1': '#000000',
+    'cScaleLabel2': '#000000'
+  }
+}}%%
 
-    00:00 : System idle
-    01:00 : Cron uploads Excel files to S3
-    01:30 : EventBridge triggers Lambda
-    01:31 : Database refresh begins
-    01:32 : Processing ~62,000 records
-    01:33 : Files moved to processed/
-    02:00 : Complete - Database updated
+timeline
+    title 🗓️ Sunday ETL Schedule - Weekly Data Refresh
+
+    section 🌙 Preparation Phase
+        00h00 : 💤 System idle - Awaiting weekly refresh
+        01h00 : 📤 Cron uploads Excel files to S3/incoming/
+        01h15 : ⏳ Files staged and ready for processing
+
+    section ⚡ Processing Phase
+        01h30 : 🔔 EventBridge triggers Lambda process_excel
+        01h31 : 🗑️ Database refresh begins - TRUNCATE all tables
+        01h32 : 📊 Processing ~62,000 records across 4 tables
+        01h33 : 📁 Files moved to S3/processed/ - Archive complete
+
+    section ✅ Completion Phase
+        01h45 : 🔍 Validation checks - Data integrity verified
+        02h00 : ✨ Complete - Database updated and ready for queries
 ```
 
 ### Preparing Files for Upload
