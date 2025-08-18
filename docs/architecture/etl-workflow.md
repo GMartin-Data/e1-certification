@@ -7,6 +7,18 @@ The E1 Certification ETL (Extract, Transform, Load) workflow is a serverless pip
 ## High-Level Architecture
 
 ```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1a1a1a',
+    'primaryTextColor': '#ffffff',
+    'primaryBorderColor': '#ffffff',
+    'background': '#000000',
+    'mainBkg': '#1a1a1a',
+    'lineColor': '#ffffff'
+  }
+}}%%
+
 graph TB
     subgraph "Local Environment"
         A[Excel Files<br/>data/excel/pending/] -->|Cron: Sunday 1:00 AM| B[upload_to_s3.py]
@@ -16,17 +28,25 @@ graph TB
         B -->|Upload| C[S3 Bucket<br/>incoming/]
         D[EventBridge<br/>Sunday 1:30 AM] -->|Trigger| E[Lambda Function<br/>process_excel]
         C -->|Read Files| E
-        E -->|1. Truncate All Tables| F[(RDS MySQL<br/>Database)]
-        E -->|2. Load Fresh Data| F
-        E -->|3. Move Files| G[S3 Bucket<br/>processed/]
+        E -->|1️⃣ Truncate All Tables| F[(RDS MySQL<br/>Database)]
+        E -->|2️⃣ Load Fresh Data| F
+        E -->|3️⃣ Move Files| G[S3 Bucket<br/>processed/]
     end
 
-    style A fill:#2196F3,stroke:#1565C0,color:#fff
-    style C fill:#FF9800,stroke:#E65100,color:#fff
-    style G fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style F fill:#9C27B0,stroke:#6A1B9A,color:#fff
-    style E fill:#FFC107,stroke:#F57C00,color:#000
-    style D fill:#F44336,stroke:#C62828,color:#fff
+    %% WCAG AA compliant colors optimized for dark background
+    classDef localFiles fill:#E8F4F8,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef s3Incoming fill:#FFF4E6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef s3Processed fill:#E6FFE6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef database fill:#F0E6FF,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef lambda fill:#FFEBE6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef eventbridge fill:#FFE6E6,stroke:#ffffff,stroke-width:3px,color:#000
+
+    class A,B localFiles
+    class C s3Incoming
+    class G s3Processed
+    class F database
+    class E lambda
+    class D eventbridge
 ```
 
 ## Detailed Workflow
@@ -34,12 +54,39 @@ graph TB
 ### 1. File Upload Process
 
 ```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1a1a1a',
+    'primaryTextColor': '#ffffff',
+    'primaryBorderColor': '#ffffff',
+    'background': '#000000',
+    'mainBkg': '#1a1a1a',
+    'actorBkg': '#E8F4F8',
+    'actorBorder': '#1E5A6E',
+    'actorTextColor': '#000000',
+    'actorLineColor': '#ffffff',
+    'signalColor': '#ffffff',
+    'signalTextColor': '#ffffff',
+    'labelBoxBkgColor': '#3d3d3d',
+    'labelBoxBorderColor': '#ffffff',
+    'labelTextColor': '#ffffff',
+    'loopTextColor': '#ffffff',
+    'activationBorderColor': '#ffffff',
+    'activationBkgColor': '#003D82',
+    'sequenceNumberColor': '#ffffff',
+    'noteBkgColor': '#FFF4E6',
+    'noteTextColor': '#000000',
+    'noteBorderColor': '#8B6914'
+  }
+}}%%
+
 sequenceDiagram
     participant Cron
     participant Script as upload_to_s3.py
     participant S3
 
-    Note over Cron: Every Sunday 1:00 AM
+    Note over Cron: 🕐 Every Sunday 1:00 AM
     Cron->>Script: Trigger upload
     Script->>Script: Scan data/excel/pending/
 
@@ -55,6 +102,18 @@ sequenceDiagram
 ### 2. ETL Processing Flow
 
 ```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1a1a1a',
+    'primaryTextColor': '#ffffff',
+    'primaryBorderColor': '#ffffff',
+    'background': '#000000',
+    'mainBkg': '#1a1a1a',
+    'lineColor': '#ffffff'
+  }
+}}%%
+
 flowchart LR
     subgraph "Lambda Execution"
         A[EventBridge Trigger] --> B{Any files in<br/>incoming/?}
@@ -79,19 +138,41 @@ flowchart LR
         M --> O[End: Will retry]
     end
 
-    style A fill:#F44336,stroke:#C62828,color:#fff
-    style N fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style O fill:#FF5722,stroke:#D84315,color:#fff
-    style F fill:#2196F3,stroke:#1565C0,color:#fff
-    style G fill:#9C27B0,stroke:#6A1B9A,color:#fff
-    style H fill:#FF9800,stroke:#E65100,color:#fff
-    style I fill:#795548,stroke:#4E342E,color:#fff
-    style J fill:#607D8B,stroke:#37474F,color:#fff
+    %% WCAG AA compliant colors optimized for dark background
+    classDef trigger fill:#FFE6E6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef success fill:#E6FFE6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef retry fill:#FFEBE6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef truncate fill:#E8F4F8,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef communities fill:#F0E6FF,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef domains fill:#FFF4E6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef tables fill:#E8F4F8,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef columns fill:#F0E6FF,stroke:#ffffff,stroke-width:3px,color:#000
+
+    class A trigger
+    class N success
+    class O retry
+    class F truncate
+    class G communities
+    class H domains
+    class I tables
+    class J columns
 ```
 
 ### 3. Database Refresh Strategy
 
 ```mermaid
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#ffffff',
+    'primaryTextColor': '#000000',
+    'primaryBorderColor': '#000000',
+    'background': '#ffffff',
+    'mainBkg': '#ffffff',
+    'lineColor': '#ffffff'
+  }
+}}%%
+
 graph TD
     A[Start Transaction] --> B[SET FOREIGN_KEY_CHECKS = 0]
     B --> C[Discover all tables<br/>from information_schema]
@@ -110,16 +191,28 @@ graph TD
 
     I --> J[Load new data<br/>in dependency order]
 
-    style A fill:#FF9800,stroke:#E65100,color:#fff
-    style B fill:#F44336,stroke:#C62828,color:#fff
-    style C fill:#2196F3,stroke:#1565C0,color:#fff
-    style J fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style D fill:#9C27B0,stroke:#6A1B9A,color:#fff
-    style E fill:#3F51B5,stroke:#283593,color:#fff
-    style F fill:#00BCD4,stroke:#00838F,color:#fff
-    style G fill:#009688,stroke:#00695C,color:#fff
-    style H fill:#607D8B,stroke:#37474F,color:#fff
-    style I fill:#F44336,stroke:#C62828,color:#fff
+    %% WCAG AA compliant colors for accessibility
+    classDef startTransaction fill:#FFEBE6,stroke:#8B4513,stroke-width:3px,color:#000
+    classDef foreignKeyOff fill:#FFE6E6,stroke:#8B0000,stroke-width:3px,color:#000
+    classDef discovery fill:#E8F4F8,stroke:#1E5A6E,stroke-width:3px,color:#000
+    classDef loadData fill:#E6FFE6,stroke:#2E7D2E,stroke-width:3px,color:#000
+    classDef truncate1 fill:#F0E6FF,stroke:#5A2C7A,stroke-width:3px,color:#000
+    classDef truncate2 fill:#F0E6FF,stroke:#5A2C7A,stroke-width:3px,color:#000
+    classDef truncate3 fill:#F0E6FF,stroke:#5A2C7A,stroke-width:3px,color:#000
+    classDef truncate4 fill:#F0E6FF,stroke:#5A2C7A,stroke-width:3px,color:#000
+    classDef truncate5 fill:#F0E6FF,stroke:#5A2C7A,stroke-width:3px,color:#000
+    classDef foreignKeyOn fill:#FFE6E6,stroke:#8B0000,stroke-width:3px,color:#000
+
+    class A startTransaction
+    class B foreignKeyOff
+    class C discovery
+    class J loadData
+    class D truncate1
+    class E truncate2
+    class F truncate3
+    class G truncate4
+    class H truncate5
+    class I foreignKeyOn
 ```
 
 ## File Processing Details
@@ -150,18 +243,38 @@ Files are processed in a specific order to respect foreign key constraints:
 ### Batch Grouping Logic
 
 ```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1a1a1a',
+    'primaryTextColor': '#ffffff',
+    'primaryBorderColor': '#ffffff',
+    'background': '#000000',
+    'mainBkg': '#1a1a1a',
+    'lineColor': '#ffffff'
+  }
+}}%%
+
 graph LR
     A[File 1<br/>20250107_14_communities.xlsx] --> D[Batch: 20250107_14]
     B[File 2<br/>20250107_14_domains.xlsx] --> D
     C[File 3<br/>20250107_14_tables.xlsx] --> D
     E[File 4<br/>20250107_15_columns.xlsx] --> F[Batch: 20250107_15]
 
-    style D fill:#4CAF50,stroke:#2E7D32,color:#fff
-    style F fill:#F44336,stroke:#C62828,color:#fff
-    style A fill:#2196F3,stroke:#1565C0,color:#fff
-    style B fill:#9C27B0,stroke:#6A1B9A,color:#fff
-    style C fill:#FF9800,stroke:#E65100,color:#fff
-    style E fill:#795548,stroke:#4E342E,color:#fff
+    %% Coherent pastel colors with optimal readability
+    classDef batchSuccess fill:#E6FFE6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef batchPending fill:#FFE6E6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef fileCommunities fill:#E8F4F8,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef fileDomains fill:#F0E6FF,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef fileTables fill:#FFF4E6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef fileColumns fill:#FFEBE6,stroke:#ffffff,stroke-width:3px,color:#000
+
+    class D batchSuccess
+    class F batchPending
+    class A fileCommunities
+    class B fileDomains
+    class C fileTables
+    class E fileColumns
 ```
 
 Files with the same timestamp prefix are processed together as one batch.
@@ -196,6 +309,18 @@ aws lambda invoke \
 ### Retry Strategy
 
 ```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1a1a1a',
+    'primaryTextColor': '#ffffff',
+    'primaryBorderColor': '#ffffff',
+    'background': '#000000',
+    'mainBkg': '#1a1a1a',
+    'lineColor': '#ffffff'
+  }
+}}%%
+
 stateDiagram-v2
     [*] --> FileInIncoming
     FileInIncoming --> Processing: EventBridge Trigger
@@ -209,6 +334,19 @@ stateDiagram-v2
         File stays in incoming/
         Will retry next schedule
     end note
+
+    %% Coherent pastel colors for optimal readability
+    classDef fileState fill:#E8F4F8,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef processState fill:#F0E6FF,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef successState fill:#E6FFE6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef failedState fill:#FFE6E6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef finalState fill:#FFEBE6,stroke:#ffffff,stroke-width:3px,color:#000
+
+    class FileInIncoming fileState
+    class Processing processState
+    class Success successState
+    class Failed failedState
+    class FileInProcessed finalState
 ```
 
 ### Common Issues
@@ -256,6 +394,18 @@ aws logs filter-log-events \
 ### Files Not Processing
 
 ```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1a1a1a',
+    'primaryTextColor': '#ffffff',
+    'primaryBorderColor': '#ffffff',
+    'background': '#000000',
+    'mainBkg': '#1a1a1a',
+    'lineColor': '#ffffff'
+  }
+}}%%
+
 graph TD
     A[Files not processing?] --> B{Check S3 incoming/}
     B -->|Files present| C{Check EventBridge}
@@ -265,14 +415,20 @@ graph TD
     F -->|Errors| G[Fix errors]
     F -->|No logs| H[Check permissions]
 
-    style A fill:#F44336,stroke:#C62828,color:#fff
-    style B fill:#2196F3,stroke:#1565C0,color:#fff
-    style C fill:#FF9800,stroke:#E65100,color:#fff
-    style D fill:#FFC107,stroke:#F57C00,color:#000
-    style E fill:#FFC107,stroke:#F57C00,color:#000
-    style F fill:#9C27B0,stroke:#6A1B9A,color:#fff
-    style G fill:#FFC107,stroke:#F57C00,color:#000
-    style H fill:#FFC107,stroke:#F57C00,color:#000
+    %% Coherent pastel colors for optimal readability
+    classDef problemStart fill:#FFE6E6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef checkFiles fill:#E8F4F8,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef checkEventBridge fill:#F0E6FF,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef verifyActions fill:#FFF4E6,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef checkLambda fill:#F0E6FF,stroke:#ffffff,stroke-width:3px,color:#000
+    classDef fixActions fill:#FFEBE6,stroke:#ffffff,stroke-width:3px,color:#000
+
+    class A problemStart
+    class B checkFiles
+    class C checkEventBridge
+    class D,E verifyActions
+    class F checkLambda
+    class G,H fixActions
 ```
 
 ### Database Not Updating
