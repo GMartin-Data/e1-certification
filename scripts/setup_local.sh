@@ -12,7 +12,7 @@ echo "🚀 Setting up e1-certification local environment..."
 cd "$PROJECT_ROOT" || exit 1
 
 # Check if .env exists
-if [ ! -f .env ]; then
+if [[ ! -f .env ]]; then
     echo "📝 Creating .env from .env.example..."
     cp .env.example .env
     echo "⚠️  Please update .env with your actual values!"
@@ -21,7 +21,7 @@ else
 fi
 
 # Check virtual environment
-if [ -d .venv ]; then
+if [[ -d .venv ]]; then
     echo "✅ Virtual environment found at $PROJECT_ROOT/.venv"
     echo "🐍 To activate it, run: source .venv/bin/activate"
 else
