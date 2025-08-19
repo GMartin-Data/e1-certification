@@ -61,28 +61,16 @@ etl-run: db-truncate etl-test ## Truncate tables and run full ETL
 # ========== API Development Commands ==========
 .PHONY: api-local
 api-local:  ## Run FastAPI locally with auto-reload
-	cd src && fastapi dev e1_certification/api/main.py --port 8000
+	fastapi dev src/e1_certification/api/main.py --port 8000
 
 # ========== Testing Commands ==========
 .PHONY: test
 test: ## Run all tests
 	pytest -v
 
-.PHONY: test-unit
-test-unit: ## Run unit tests only
-	pytest -v -m "not integration"
-
-.PHONY: test-integration
-test-integration: ## Run integration tests only
-	pytest -v -m integration
-
 .PHONY: test-coverage
 test-coverage: ## Run tests with coverage report
 	pytest --cov=e1_certification --cov-report=html --cov-report=term
-
-.PHONY: test-watch
-test-watch: ## Run tests in watch mode (requires pytest-watch)
-	ptw -- -v
 
 # ========== Code Quality Commands ==========
 .PHONY: lint
@@ -105,7 +93,7 @@ pre-commit: ## Run all pre-commit hooks
 # ========== SAM/AWS Commands ==========
 .PHONY: build
 build: ## Build SAM application
-	sam build
+	sam build --use-container
 
 .PHONY: deploy
 deploy: build ## Deploy to AWS (dev environment)
